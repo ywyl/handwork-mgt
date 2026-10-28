@@ -15,13 +15,19 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       component: () => import('@/views/About.vue'),
-      meta: { title: '关于', icon: 'InfoFilled', affix: true, order: 2 },
+      meta: { title: '关于', icon: 'InfoFilled', affix: true, order: 3 },
     },
     {
       path: '/personnel',
       name: 'personnel',
       component: () => import('@/views/Personnel.vue'),
       meta: { title: '人员管理', icon: 'UserFilled', affix: true, order: 1 },
+    },
+    {
+      path: '/add',
+      name: 'add',
+      component: () => import('@/views/Add.vue'),
+      meta: { title: '添加', icon: 'Plus', affix: true, order: 2 },
     },
   ],
 })

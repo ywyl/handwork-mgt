@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeFilled, InfoFilled, UserFilled } from '@element-plus/icons-vue'
+import { HomeFilled, InfoFilled, Plus, UserFilled } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,6 +14,7 @@ const iconMap: Record<string, Component> = {
   HomeFilled,
   UserFilled,
   InfoFilled,
+  Plus,
 }
 
 interface NavTab {
