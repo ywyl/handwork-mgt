@@ -35,8 +35,8 @@ npm i --save https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz
 
 本项目的 `package.json` 中已固定该地址，`npm install` 会直接拉取。
 
-- 读写逻辑集中在 `src/utils/excel.ts`：`readWorkbook`（ArrayBuffer → 工作簿）、`sheetToRows`（工作表 → 行对象）、`rowsToSheet`、`exportRows`（生成 Blob 并触发下载）
-- 表格状态（文件信息、工作表列表、行数据）由 `src/stores/records.ts` 中的 Pinia store 管理
+- 读写逻辑集中在 `src/utils/excel.ts`：`readWorkbook`（ArrayBuffer → 工作簿）、`sheetToRows`（工作表 → 行对象）、`sheetToGrid`（工作表 → 二维数组）、`rowsToSheet`、`exportRows`（生成 Blob 并触发下载）
+- 表格状态（文件信息、工作表列表、行数据）由 `src/stores/records.ts` 中的 Pinia store 管理；需要二维数据时调用 store 的 `getSheetGrid(name?, options?)`
 
 ## 快速开始
 
@@ -53,6 +53,15 @@ npm run build
 # 从 Electron 运行已构建的产物（需先 npm run build）
 npm start
 
+# 仅生成未压缩的打包目录（release/win-unpacked/），用于快速验证
+npm run pack
+
+# 打包 Windows 安装包 + 免安装便携版（产物输出到 release/）
+npm run dist:win
+
+# 按当前操作系统打包（Windows 上等同于 dist:win）
+npm run dist
+
 # 代码检查
 npm run lint
 
@@ -60,7 +69,31 @@ npm run lint
 npm run format
 ```
 
-> 提示：若需生成可分发的安装包，可在此基础之上引入 `electron-builder` 并配置打包脚本。
+> 若通过 npmmirror 安装依赖后打包时下载 Electron 很慢，可先设置镜像：`$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"`。
+
+## 打包成 exe
+
+打包使用 [electron-builder](https://www.electron.build/)，配置见 [electron-builder.yml](./electron-builder.yml)：
+
+- 入口：`dist-electron/main.js`（生产环境加载 `dist/index.html`，即 Vite 构建产物）
+- 打包范围：仅包含 `dist/`、`dist-electron/` 与 `package.json`，运行时依赖已被 Vite 打进产物，无需携带 `node_modules`
+- 输出目录：`release/`
+
+执行 `npm run dist:win` 后得到：
+
+| 文件 | 说明 |
+| --- | --- |
+| `release/HandworkMgt-<version>-setup.exe` | NSIS 安装包，可选安装目录，创建桌面 / 开始菜单快捷方式 |
+| `release/HandworkMgt-<version>-portable.exe` | 免安装便携版，双击即可运行 |
+| `release/win-unpacked/` | 未压缩的应用目录，便于排查问题（`Handwork Mgt.exe`） |
+| `release/latest.yml`、`*.blockmap` | 更新元数据 / 增量包，可用于后续自动更新 |
+
+可自定义的部分：
+
+- **应用图标**：将 256×256 的 `icon.ico` 放到 `build/` 目录后再打包，未提供时使用 Electron 默认图标
+- **版本号**：修改 `package.json` 的 `version`，安装包文件名会随之变化
+- **代码签名**：当前未配置证书，Windows 可能提示“未知发布者”。正式分发可配置 `CSC_LINK` / `CSC_KEY_PASSWORD` 环境变量（或 CI 签名服务）后重新打包
+- **仅打安装包 / 仅打便携版**：在 `electron-builder.yml` 的 `win.target` 中删掉不需要的目标即可
 
 ## 目录结构
 
@@ -69,6 +102,8 @@ handwork-mgt/
 ├── electron/               # Electron 进程代码
 │   ├── main.ts             # 主进程入口（创建窗口、加载页面）
 │   └── preload.ts          # 预加载脚本（contextBridge 暴露受控 API）
+├── build/                  # 打包资源（可选：放置 icon.ico 作为应用图标）
+├── release/                # electron-builder 打包产物（不提交）
 ├── public/
 │   └── vite.svg
 ├── src/
@@ -83,6 +118,7 @@ handwork-mgt/
 │   ├── App.vue             # 顶部导航
 │   └── main.ts             # 应用入口
 ├── vite.config.ts          # Vite + vite-plugin-electron 配置
+├── electron-builder.yml    # electron-builder 打包配置
 ├── eslint.config.js
 ├── tsconfig.*.json
 └── package.json

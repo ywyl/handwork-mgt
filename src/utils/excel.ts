@@ -2,6 +2,12 @@ import * as XLSX from 'xlsx'
 
 export type CellValue = string | number | boolean | null
 export type SheetRow = Record<string, CellValue>
+export type SheetGrid = CellValue[][]
+
+export interface GridOptions {
+  /** 是否保留首行表头，默认 true；设为 false 时返回纯数据行 */
+  header?: boolean
+}
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -14,6 +20,21 @@ export async function readWorkbook(file: Blob): Promise<XLSX.WorkBook> {
 /** 工作表 → 行对象数组，首行作为表头；空单元格补空字符串 */
 export function sheetToRows(sheet: XLSX.WorkSheet): SheetRow[] {
   return XLSX.utils.sheet_to_json<SheetRow>(sheet, { defval: '', raw: true })
+}
+
+/** 工作表 → 二维数组；空单元格补空字符串，整行为空的行会被跳过，各行列数对齐 */
+export function sheetToGrid(sheet: XLSX.WorkSheet, options: GridOptions = {}): SheetGrid {
+  const rows = XLSX.utils.sheet_to_json<CellValue[]>(sheet, {
+    header: 1,
+    defval: '',
+    raw: true,
+    blankrows: false,
+  })
+  const width = rows.reduce((max, row) => Math.max(max, row.length), 0)
+  const grid = rows.map((row) =>
+    Array.from({ length: width }, (_, column) => (row[column] === undefined ? '' : row[column])),
+  )
+  return options.header === false ? grid.slice(1) : grid
 }
 
 /** 收集所有行出现过的列名（保持首次出现顺序） */

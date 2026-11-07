@@ -88,13 +88,16 @@ function handleSelect(path: string) {
 <style scoped lang="scss">
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  // 整体锁定在视口内，由内容区域自行滚动，页面高度不会随窗口缩放溢出
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-sidebar {
   display: flex;
   flex: 0 0 220px;
   flex-direction: column;
+  overflow-y: auto;
   background: #fff;
   border-right: 1px solid #e4e7ed;
   padding: 24px 12px;
@@ -111,7 +114,8 @@ function handleSelect(path: string) {
 .app-main {
   flex: 1;
   min-width: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: auto;
   background-color: #f5f7fa;
   padding: 24px;
 }

@@ -1,0 +1,43 @@
+# electron-builder 打包配置：https://www.electron.build/configuration
+appId: com.handwork.mgt
+productName: Handwork Mgt
+copyright: Copyright © 2026 Handwork Mgt
+
+directories:
+  # 打包产物输出目录
+  output: release
+  # 图标等打包资源目录（将 build/icon.ico 放入即可替换默认图标）
+  buildResources: build
+
+# 仅打包运行所需文件（渲染层与主进程产物），依赖已由 Vite 打包进产物
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+
+asar: true
+
+win:
+  target:
+    # NSIS 安装包
+    - target: nsis
+      arch:
+        - x64
+    # 免安装单文件
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Handwork Mgt
+  installerLanguages:
+    - zh_CN
+  artifactName: HandworkMgt-${version}-setup.${ext}
+
+portable:
+  artifactName: HandworkMgt-${version}-portable.${ext}
