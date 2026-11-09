@@ -2,19 +2,18 @@
 import { reactive, ref } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { useAdditionsStore } from '@/stores/additions'
-import type { PersonInfo, TaskInfo } from './interface'
+import { useRecordsStore } from '@/stores/records'
+import type { PersonInfo, TaskInfo, WorkAction } from './interface'
 
 const store = useAdditionsStore()
+const recordsStore = useRecordsStore()
+const taskOptions: TaskInfo[] = ['包边', '包角', '包底']
 
 // 数字输入框可能被清空，表单模型允许 undefined，提交时再兜底
-interface TaskForm {
-  name: string
-  price?: number
-}
-
 interface WorkForm {
   personName: string
-  taskName: string
+  taskName: TaskInfo
+  action: WorkAction
   counts?: number
   date: string
 }
@@ -25,17 +24,18 @@ const personRules: FormRules<PersonInfo> = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
 }
 
-const taskFormRef = ref<FormInstance>()
-const taskForm = reactive<TaskForm>({ name: '', price: 0 })
-const taskRules: FormRules<TaskForm> = {
-  name: [{ required: true, message: '请输入物品名称', trigger: 'blur' }],
-}
-
 const workFormRef = ref<FormInstance>()
-const workForm = reactive<WorkForm>({ personName: '', taskName: '', counts: 1, date: '' })
+const workForm = reactive<WorkForm>({
+  personName: '',
+  taskName: '包边',
+  action: '领取',
+  counts: 1,
+  date: '',
+})
 const workRules: FormRules<WorkForm> = {
   personName: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   taskName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  action: [{ required: true, message: '请选择领取或回收', trigger: 'change' }],
   date: [{ required: true, message: '请选择工作日期', trigger: 'change' }],
 }
 
@@ -53,25 +53,27 @@ async function submitPerson() {
   ElMessage.success('已添加一条人员信息')
 }
 
-async function submitTask() {
-  if (!(await validate(taskFormRef.value))) return
-  store.addTask({ name: taskForm.name.trim(), price: taskForm.price ?? 0 })
-  taskForm.name = ''
-  taskForm.price = 0
-  taskFormRef.value?.clearValidate()
-  ElMessage.success('已添加一条物品信息')
-}
-
 async function submitWork() {
   if (!(await validate(workFormRef.value))) return
-  store.addWork({
+  const work = {
     personName: { name: workForm.personName.trim() },
-    taskName: { name: workForm.taskName.trim() },
+    taskName: workForm.taskName,
+    action: workForm.action,
     counts: workForm.counts ?? 0,
     date: workForm.date,
-  })
+  }
+
+  try {
+    recordsStore.addWorkRecord(work)
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '同步工作信息到首页失败')
+    return
+  }
+
+  store.addWork(work)
   workForm.personName = ''
-  workForm.taskName = ''
+  workForm.taskName = '包边'
+  workForm.action = '领取'
   workForm.counts = 1
   workForm.date = ''
   workFormRef.value?.clearValidate()
@@ -119,42 +121,7 @@ async function submitWork() {
     <el-card shadow="never">
       <template #header>
         <div class="card-header">
-          <span>第二部分 · 添加物品</span>
-          <span class="count">已添加 {{ store.tasks.length }} 条</span>
-        </div>
-      </template>
-
-      <el-form ref="taskFormRef" :model="taskForm" :rules="taskRules" label-width="80px">
-        <el-form-item label="物品名称" prop="name">
-          <el-input v-model="taskForm.name" placeholder="请输入物品名称" clearable />
-        </el-form-item>
-        <el-form-item label="价格" prop="price">
-          <el-input-number
-            v-model="taskForm.price"
-            :min="0"
-            :precision="2"
-            :step="1"
-            controls-position="right"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="submitTask">添加物品</el-button>
-        </el-form-item>
-      </el-form>
-
-      <el-table :data="store.tasks" size="small" border max-height="220">
-        <el-table-column type="index" label="#" width="50" />
-        <el-table-column prop="name" label="物品名称" min-width="120" />
-        <el-table-column label="价格" width="120">
-          <template #default="{ row }: { row: TaskInfo }"> ¥{{ row.price.toFixed(2) }} </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
-
-    <el-card shadow="never">
-      <template #header>
-        <div class="card-header">
-          <span>第三部分 · 添加工作信息</span>
+          <span>第二部分 · 添加工作信息</span>
           <span class="count">已添加 {{ store.works.length }} 条</span>
         </div>
       </template>
@@ -164,7 +131,15 @@ async function submitWork() {
           <el-input v-model="workForm.personName" placeholder="请输入姓名" clearable />
         </el-form-item>
         <el-form-item label="任务名称" prop="taskName">
-          <el-input v-model="workForm.taskName" placeholder="请输入任务名称" clearable />
+          <el-select v-model="workForm.taskName" placeholder="请选择任务名称">
+            <el-option v-for="task in taskOptions" :key="task" :label="task" :value="task" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="领取/回收" prop="action">
+          <el-select v-model="workForm.action" placeholder="请选择领取或回收">
+            <el-option label="领取" value="领取" />
+            <el-option label="回收" value="回收" />
+          </el-select>
         </el-form-item>
         <el-form-item label="数量" prop="counts">
           <el-input-number
@@ -191,7 +166,8 @@ async function submitWork() {
       <el-table :data="store.works" size="small" border max-height="220">
         <el-table-column type="index" label="#" width="50" />
         <el-table-column prop="personName.name" label="姓名" min-width="100" />
-        <el-table-column prop="taskName.name" label="任务名称" min-width="120" />
+        <el-table-column prop="taskName" label="任务名称" min-width="120" />
+        <el-table-column prop="action" label="领取/回收" width="110" />
         <el-table-column prop="counts" label="数量" width="90" />
         <el-table-column prop="date" label="日期" min-width="120" />
       </el-table>

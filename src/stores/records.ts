@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import type { WorkBook } from 'xlsx'
+import type { PersonWorkInfo } from '@/views/interface'
 import {
   collectColumns,
   exportRows,
@@ -23,6 +24,30 @@ export const useRecordsStore = defineStore('records', () => {
   const columns = computed(() => collectColumns(rows.value))
 
   const personData = ref<SheetGrid>([])
+
+  function formatMonthDay(value: unknown): string {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return `${String(value.getMonth() + 1).padStart(2, '0')}.${String(value.getDate()).padStart(2, '0')}`
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 24 * 60 * 60 * 1000)
+      return `${String(date.getUTCMonth() + 1).padStart(2, '0')}.${String(date.getUTCDate()).padStart(2, '0')}`
+    }
+
+    const text = String(value ?? '').trim()
+    const fullDate = text.match(/^\d{4}[-/](\d{1,2})[-/](\d{1,2})/)
+    if (fullDate) {
+      return `${fullDate[1].padStart(2, '0')}.${fullDate[2].padStart(2, '0')}`
+    }
+
+    const monthDay = text.match(/^(\d{1,2})[./](\d{1,2})$/)
+    if (monthDay) {
+      return `${monthDay[1].padStart(2, '0')}.${monthDay[2].padStart(2, '0')}`
+    }
+
+    return text
+  }
 
   function loadSheet(name: string) {
     const sheet = workbook.value?.Sheets[name]
@@ -69,6 +94,64 @@ export const useRecordsStore = defineStore('records', () => {
     rows.value.splice(index, 1)
   }
 
+  function addWorkRecord(work: PersonWorkInfo) {
+    if (!activeSheet.value || !rows.value.length) {
+      throw new Error('请先在首页导入包含表头的 Excel 工作表')
+    }
+
+    const nameColumn = columns.value.includes('名称')
+      ? '名称'
+      : columns.value.includes('姓名')
+        ? '姓名'
+        : undefined
+    if (!nameColumn || !columns.value.includes('日期')) {
+      throw new Error('当前工作表必须包含“名称”或“姓名”列，以及“日期”列')
+    }
+
+    const targetColumn = `${work.taskName}${work.action}`
+    if (!columns.value.includes(targetColumn)) {
+      throw new Error(`当前工作表中找不到“${targetColumn}”列`)
+    }
+
+    const name = work.personName.name.trim()
+    const date = formatMonthDay(work.date)
+    const existingRow = rows.value.find(
+      (row) =>
+        String(row[nameColumn] ?? '').trim() === name && formatMonthDay(row['日期']) === date,
+    )
+
+    if (existingRow) {
+      const currentValue = existingRow[targetColumn]
+      const currentCount =
+        currentValue === null || currentValue === undefined || currentValue === ''
+          ? 0
+          : Number(currentValue)
+      if (!Number.isFinite(currentCount)) {
+        throw new Error(`“${targetColumn}”列已有非数字内容，无法累加数量`)
+      }
+
+      columns.value.forEach((column) => {
+        const value = existingRow[column]
+        if (
+          column !== nameColumn &&
+          column !== '日期' &&
+          (value === '' || value === null || value === undefined)
+        ) {
+          existingRow[column] = 0
+        }
+      })
+      existingRow['日期'] = date
+      existingRow[targetColumn] = currentCount + work.counts
+      return
+    }
+
+    const newRow: SheetRow = Object.fromEntries(columns.value.map((column) => [column, 0]))
+    newRow[nameColumn] = name
+    newRow['日期'] = date
+    newRow[targetColumn] = work.counts
+    rows.value.push(newRow)
+  }
+
   function clear() {
     fileName.value = ''
     sheetNames.value = []
@@ -95,6 +178,7 @@ export const useRecordsStore = defineStore('records', () => {
     setCell,
     addRow,
     removeRow,
+    addWorkRecord,
     clear,
     exportCurrent,
   }
