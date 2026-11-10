@@ -1,5 +1,6 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { registerDataHandlers } from './dataStore.js'
 
 // 开发模式（由 vite-plugin-electron 注入 VITE_DEV_SERVER_URL）
 const isDev = !!process.env.VITE_DEV_SERVER_URL
@@ -43,6 +44,9 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  // 注册 electron-store 数据读写 IPC（需在窗口创建前完成）
+  registerDataHandlers()
+
   createWindow()
 
   app.on('activate', () => {

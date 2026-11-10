@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Handwork Mgt 桌面表格管理工具",
+  "description": "Handwork Mgt 计件工作管理工具",
   "author": "Handwork Mgt",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -19,11 +19,11 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "electron-store": "^12.0.0",
     "element-plus": "^2.14.3",
     "pinia": "^4.0.2",
     "vue": "^3.5.39",
-    "vue-router": "^4.6.4",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

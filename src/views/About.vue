@@ -3,7 +3,7 @@ const techStack = [
   { name: 'Electron', description: '跨平台桌面应用框架' },
   { name: 'Vue 3', description: '渐进式 JavaScript 框架' },
   { name: 'TypeScript', description: '类型安全的 JavaScript 超集' },
-  { name: 'SheetJS (xlsx)', description: '电子表格读写与解析' },
+  { name: 'electron-store', description: '主进程本地数据持久化' },
   { name: 'Element Plus', description: '基于 Vue 3 的组件库' },
   { name: 'Pinia', description: 'Vue 状态管理' },
   { name: 'Vue Router', description: 'Vue 官方路由' },
@@ -21,7 +21,9 @@ const electronInfo = window.electronAPI
       <template #header>
         <h2>关于项目</h2>
       </template>
-      <p>这是一个基于 Electron + Vue 3 + SheetJS 的桌面表格数据处理项目，使用以下技术栈搭建：</p>
+      <p>
+        这是一个基于 Electron + Vue 3 + electron-store 的桌面工作记录管理项目，使用以下技术栈搭建：
+      </p>
       <el-table :data="techStack" stripe style="width: 100%">
         <el-table-column prop="name" label="技术" width="150" />
         <el-table-column prop="description" label="说明" />

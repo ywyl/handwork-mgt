@@ -1,64 +1,45 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
-import { useRecordsStore } from '@/stores/records'
-import type { PersonInfo } from './interface'
+import { useDataStore } from '@/stores/data'
+import type { WorkCountInput } from '@/views/interface'
 
-const store = useRecordsStore()
-
-// 二维数组首行是表头，其余行取第一列作为姓名；同名只保留首次出现的一项
-const employees = computed<PersonInfo[]>(() => {
-  const seen = new Set<string>()
-  return store.personData
-    .slice(1)
-    .map((row) => String(row[0] ?? '').trim())
-    .filter((name) => {
-      if (!name || seen.has(name)) return false
-      seen.add(name)
-      return true
-    })
-    .map((name) => ({ name }))
-})
+const store = useDataStore()
 
 const keyword = ref('')
 const selectedName = ref('')
 
-// 首行是表头；第一列是姓名（已在标题中展示），表格里跳过
-const detailColumns = computed(() => {
-  const first = store.personData[0]
-  if (!first) return []
-  return first.slice(1).map((cell, index) => ({
-    index: index + 1,
-    title: String(cell ?? '').trim() || `第 ${index + 2} 列`,
-  }))
-})
-
-// 选中人员的原始行：第一列（姓名）与选中项相同，含重复记录
-const selectedRows = computed(() => {
-  if (!selectedName.value) return []
-  return store.personData
-    .slice(1)
-    .filter((row) => String(row[0] ?? '').trim() === selectedName.value)
-})
-
 const filteredEmployees = computed(() => {
   const query = keyword.value.trim().toLocaleLowerCase()
-  if (!query) return employees.value
-
-  return employees.value.filter((person) => person.name.toLocaleLowerCase().includes(query))
+  if (!query) return store.persons
+  return store.persons.filter((person) => person.name.toLocaleLowerCase().includes(query))
 })
 
-function formatCell(value: unknown): string {
-  return value === null || value === undefined ? '' : String(value)
-}
+const selectedRecords = computed(() => store.recordsOf(selectedName.value))
+
+const selectedRows = computed(() =>
+  selectedRecords.value.flatMap((record) =>
+    record.items.map((item) => ({
+      personName: record.personName,
+      date: record.date,
+      ...item,
+    })),
+  ),
+)
+
+const selectedSummary = computed(() => {
+  const rows = selectedRows.value
+  return {
+    recordCount: selectedRecords.value.length,
+    detailCount: rows.length,
+    counts: rows.reduce((sum, row) => sum + row.counts, 0),
+    amount: Math.round(rows.reduce((sum, row) => sum + store.amountOf(row), 0) * 100) / 100,
+  }
+})
 
 function selectPerson(name: string) {
   selectedName.value = name
 }
-
-onMounted(() => {
-  console.log('personnel mounted, employees:', store.personData)
-})
 </script>
 
 <template>
@@ -87,7 +68,7 @@ onMounted(() => {
         <el-empty
           v-if="!filteredEmployees.length"
           :image-size="60"
-          :description="employees.length ? '没有匹配的人员' : '暂无人员数据'"
+          :description="store.persons.length ? '没有匹配的人员' : '暂无人员数据'"
         />
       </div>
       <p class="count">共 {{ filteredEmployees.length }} 人</p>
@@ -97,18 +78,27 @@ onMounted(() => {
       <template v-if="selectedName">
         <div class="detail-header">
           <h3>{{ selectedName }}</h3>
-          <span>共 {{ selectedRows.length }} 条记录</span>
+          <span>
+            共 {{ selectedSummary.recordCount }} 天 · {{ selectedSummary.detailCount }} 条明细 ·
+            合计 {{ selectedSummary.counts }} 件 · {{ selectedSummary.amount }} 元
+          </span>
         </div>
         <div class="table-wrap">
           <el-table :data="selectedRows" border stripe height="100%">
             <el-table-column type="index" label="#" width="56" fixed />
-            <el-table-column
-              v-for="column in detailColumns"
-              :key="column.index"
-              :label="column.title"
-              min-width="120"
-            >
-              <template #default="{ row }">{{ formatCell(row[column.index]) }}</template>
+            <el-table-column prop="date" label="日期" width="120" />
+            <el-table-column prop="workTypeName" label="工作类型" min-width="120" />
+            <el-table-column prop="action" label="领取/回收" width="110" />
+            <el-table-column prop="counts" label="数量" width="90" />
+            <el-table-column label="单价（元）" width="110">
+              <template #default="{ row }: { row: WorkCountInput }">
+                {{ store.priceMap.get(row.workTypeName) ?? 0 }}
+              </template>
+            </el-table-column>
+            <el-table-column label="金额（元）" width="110">
+              <template #default="{ row }: { row: WorkCountInput }">
+                {{ store.amountOf(row) }}
+              </template>
             </el-table-column>
             <template #empty>
               <el-empty :image-size="60" description="暂无相关数据" />

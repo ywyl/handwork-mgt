@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, onMounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { HomeFilled, InfoFilled, Plus, UserFilled } from '@element-plus/icons-vue'
+import { useDataStore } from '@/stores/data'
 
 const router = useRouter()
 const route = useRoute()
+const dataStore = useDataStore()
+
+onMounted(() => {
+  dataStore.refresh().catch((error) => console.error('加载本地数据失败:', error))
+})
 
 // 最多显示多少个页签（固定页签也计入总数）
 const MAX_TABS = 8

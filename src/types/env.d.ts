@@ -24,5 +24,7 @@ interface Window {
       chrome: string
       node: string
     }
+    /** electron-store 数据接口（preload 中通过 IPC 调用主进程） */
+    data?: import('../views/interface').DataApi
   }
 }
